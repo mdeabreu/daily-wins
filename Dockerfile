@@ -48,6 +48,16 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+
+# Install libsql dep based on the preferred package manager
+RUN \
+  if [ -f yarn.lock ]; then yarn i libsql; \
+  elif [ -f package-lock.json ]; then npm i libsql; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i libsql; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
 # Remove this line if you do not have this folder
 COPY --from=builder /app/public ./public
 
@@ -65,6 +75,7 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT 3000
+VOLUME /app/data
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
