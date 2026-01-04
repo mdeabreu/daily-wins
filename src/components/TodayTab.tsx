@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { Journal, Win } from '@/payload-types'
 
@@ -35,41 +35,102 @@ const getWinId = (entry: NonNullable<Journal['wins']>[number]['win']) => {
   return typeof entry === 'number' ? entry : entry.id
 }
 
+const buildWinsState = (wins: Win[], journal: Journal | null): WinEntryState[] => {
+  return wins.map((win) => {
+    const journalEntry = journal?.wins?.find((entry) => getWinId(entry.win) === win.id)
+
+    return {
+      winId: win.id,
+      completed: Boolean(journalEntry?.completed),
+      note: journalEntry?.note ?? '',
+    }
+  })
+}
+
+const buildSnapshot = (rating: number | null, journalText: string, winsState: WinEntryState[]) => {
+  return JSON.stringify({
+    rating,
+    journalText: journalText.trim(),
+    wins: winsState.map((entry) => ({
+      winId: entry.winId,
+      completed: entry.completed,
+      note: entry.note.trim(),
+    })),
+  })
+}
+
+const getDateKey = (date: Date) => date.toISOString().slice(0, 10)
+
+const addDays = (date: Date, offset: number) => {
+  const next = new Date(date)
+  next.setDate(next.getDate() + offset)
+  return next
+}
+
+const addDaysToKey = (dateKey: string, offset: number) => {
+  const date = new Date(`${dateKey}T00:00:00`)
+  return getDateKey(addDays(date, offset))
+}
+
+const getDateRange = (dateKey: string) => {
+  const start = new Date(`${dateKey}T00:00:00`)
+  const end = addDays(start, 1)
+  return { start, end }
+}
+
 export default function TodayTab({ data }: { data: TodayTabData | null }) {
   const [activeNoteWinId, setActiveNoteWinId] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [dateStatus, setDateStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [supportsPicker, setSupportsPicker] = useState(true)
+  const dateInputRef = useRef<HTMLInputElement | null>(null)
 
   const [journalId, setJournalId] = useState<number | null>(data?.journal?.id ?? null)
   const [rating, setRating] = useState<number | null>(data?.journal?.rating ?? null)
   const [journalText, setJournalText] = useState<string>(data?.journal?.journal ?? '')
-  const [winsState, setWinsState] = useState<WinEntryState[]>(() => {
-    if (!data) return []
+  const [winsState, setWinsState] = useState<WinEntryState[]>(() =>
+    data ? buildWinsState(data.wins, data.journal) : [],
+  )
+  const todayKey = data?.todayISO ? data.todayISO.slice(0, 10) : ''
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(todayKey)
+  const [initialSnapshot, setInitialSnapshot] = useState<string>(() =>
+    buildSnapshot(
+      data?.journal?.rating ?? null,
+      data?.journal?.journal ?? '',
+      data ? buildWinsState(data.wins, data.journal) : [],
+    ),
+  )
 
-    return data.wins.map((win) => {
-      const journalEntry = data.journal?.wins?.find((entry) => getWinId(entry.win) === win.id)
-
-      return {
-        winId: win.id,
-        completed: Boolean(journalEntry?.completed),
-        note: journalEntry?.note ?? '',
-      }
-    })
-  })
+  useEffect(() => {
+    const hasPicker =
+      typeof window !== 'undefined' &&
+      typeof HTMLInputElement !== 'undefined' &&
+      'showPicker' in HTMLInputElement.prototype
+    setSupportsPicker(hasPicker)
+  }, [])
 
   const todayLabel = useMemo(() => {
-    if (!data?.todayISO) return 'Today'
+    if (!selectedDateKey) return 'Today'
     const formatter = new Intl.DateTimeFormat(undefined, {
       weekday: 'long',
       month: 'short',
       day: 'numeric',
     })
-    return formatter.format(new Date(data.todayISO))
-  }, [data?.todayISO])
+    const displayDate = new Date(`${selectedDateKey}T12:00:00`)
+    const isToday = selectedDateKey === todayKey
+    return isToday ? `Today · ${formatter.format(displayDate)}` : formatter.format(displayDate)
+  }, [selectedDateKey, todayKey])
 
   const completedWinsCount = useMemo(
     () => winsState.filter((entry) => entry.completed).length,
     [winsState],
   )
+
+  const currentSnapshot = useMemo(
+    () => buildSnapshot(rating, journalText, winsState),
+    [journalText, rating, winsState],
+  )
+  const isDirty = currentSnapshot !== initialSnapshot
 
   const canSave = useMemo(() => {
     if (!data) return false
@@ -90,8 +151,24 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
     )
   }
 
-  const handleSave = async () => {
-    if (!data) return
+  const applyJournal = (journal: Journal | null) => {
+    setJournalId(journal?.id ?? null)
+    setRating(journal?.rating ?? null)
+    setJournalText(journal?.journal ?? '')
+    setWinsState(data ? buildWinsState(data.wins, journal) : [])
+    setActiveNoteWinId(null)
+    setSaveStatus('idle')
+    setInitialSnapshot(
+      buildSnapshot(
+        journal?.rating ?? null,
+        journal?.journal ?? '',
+        data ? buildWinsState(data.wins, journal) : [],
+      ),
+    )
+  }
+
+  const handleSave = async (): Promise<boolean> => {
+    if (!data) return false
 
     setSaveStatus('saving')
 
@@ -103,8 +180,9 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
         note: entry.note.trim() || undefined,
       }))
 
+    const { start } = getDateRange(selectedDateKey)
     const payload = {
-      date: data.todayISO,
+      date: start.toISOString(),
       rating: rating ?? undefined,
       journal: journalText.trim() || undefined,
       wins: winsPayload,
@@ -124,12 +202,71 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
 
       const saved = (await response.json()) as Journal
       setJournalId(saved.id)
+      setInitialSnapshot(buildSnapshot(rating, journalText, winsState))
       setSaveStatus('saved')
       window.setTimeout(() => setSaveStatus('idle'), 2500)
+      return true
     } catch (error) {
       console.error(error)
       setSaveStatus('error')
+      return false
     }
+  }
+
+  const loadJournalForDate = async (dateKey: string) => {
+    if (!data) return false
+    setDateStatus('loading')
+
+    try {
+      const { start, end } = getDateRange(dateKey)
+      const params = new URLSearchParams()
+      params.set('limit', '1')
+      params.set('depth', '0')
+      params.set('where[and][0][date][greater_than_equal]', start.toISOString())
+      params.set('where[and][1][date][less_than]', end.toISOString())
+
+      const response = await fetch(`/api/journals?${params.toString()}`, {
+        method: 'GET',
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to load journal: ${response.status}`)
+      }
+
+      const result = (await response.json()) as { docs: Journal[] }
+      const journal = result.docs[0] ?? null
+
+      applyJournal(journal)
+      setDateStatus('idle')
+      return true
+    } catch (error) {
+      console.error(error)
+      setDateStatus('error')
+      return false
+    }
+  }
+
+  const confirmSaveIfDirty = async () => {
+    if (!isDirty) return true
+    const shouldSave = window.confirm('You have unsaved changes. Save before leaving this day?')
+    if (!shouldSave) return false
+    return handleSave()
+  }
+
+  const requestDateChange = async (nextKey: string) => {
+    if (nextKey === selectedDateKey) return
+    if (nextKey > todayKey) return
+
+    const canLeave = await confirmSaveIfDirty()
+    if (!canLeave) return
+
+    const previousKey = selectedDateKey
+    setSelectedDateKey(nextKey)
+    const loaded = await loadJournalForDate(nextKey)
+    if (loaded) {
+      return
+    }
+    setSelectedDateKey(previousKey)
   }
 
   if (!data) {
@@ -138,6 +275,7 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
 
   const activeNoteWin = winsState.find((entry) => entry.winId === activeNoteWinId)
   const activeWinDetails = data.wins.find((win) => win.id === activeNoteWinId)
+  const isToday = selectedDateKey === todayKey
 
   return (
     <>
@@ -145,7 +283,65 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
       <div className="today-tab">
         <header className="today-header">
           <div>
-            <p className="today-date">{todayLabel}</p>
+            <div className="date-nav">
+              <button
+                className="date-arrow"
+                type="button"
+                aria-label="Previous day"
+                onClick={() => requestDateChange(addDaysToKey(selectedDateKey, -1))}
+                disabled={dateStatus === 'loading'}
+              >
+                ←
+              </button>
+              <div className="date-picker">
+                {supportsPicker ? (
+                  <>
+                    <button
+                      className="date-picker-button"
+                      type="button"
+                      onClick={() => dateInputRef.current?.showPicker?.()}
+                      disabled={dateStatus === 'loading'}
+                    >
+                      <span className="today-date">{todayLabel}</span>
+                    </button>
+                    <input
+                      ref={dateInputRef}
+                      className="date-picker-input"
+                      type="date"
+                      value={selectedDateKey}
+                      max={todayKey}
+                      onChange={(event) => requestDateChange(event.target.value)}
+                      aria-label="Pick a date"
+                      disabled={dateStatus === 'loading'}
+                      tabIndex={-1}
+                    />
+                  </>
+                ) : (
+                  <label className="date-picker-fallback">
+                    <span className="today-date">{todayLabel}</span>
+                    <input
+                      className="date-input"
+                      type="date"
+                      value={selectedDateKey}
+                      max={todayKey}
+                      onChange={(event) => requestDateChange(event.target.value)}
+                      aria-label="Pick a date"
+                      disabled={dateStatus === 'loading'}
+                    />
+                  </label>
+                )}
+              </div>
+              <button
+                className="date-arrow"
+                type="button"
+                aria-label="Next day"
+                onClick={() => requestDateChange(addDaysToKey(selectedDateKey, 1))}
+                disabled={isToday || dateStatus === 'loading'}
+              >
+                →
+              </button>
+            </div>
+            <p className="today-intro">Close the day with a quick check-in.</p>
           </div>
           <span className="streak-pill">Journal streak: {data.journalStreak} days</span>
         </header>
