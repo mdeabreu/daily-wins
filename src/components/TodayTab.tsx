@@ -83,6 +83,7 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [dateStatus, setDateStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [supportsPicker, setSupportsPicker] = useState(true)
+  const [isTouch, setIsTouch] = useState(false)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
 
   const [journalId, setJournalId] = useState<number | null>(data?.journal?.id ?? null)
@@ -107,6 +108,10 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
       typeof HTMLInputElement !== 'undefined' &&
       'showPicker' in HTMLInputElement.prototype
     setSupportsPicker(hasPicker)
+    setIsTouch(
+      typeof window !== 'undefined' &&
+        ('ontouchstart' in window || (navigator?.maxTouchPoints ?? 0) > 0),
+    )
   }, [])
 
   const todayLabel = useMemo(() => {
@@ -294,12 +299,15 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
                 ←
               </button>
               <div className="date-picker">
-                {supportsPicker ? (
+                {supportsPicker && !isTouch ? (
                   <>
                     <button
                       className="date-picker-button"
                       type="button"
-                      onClick={() => dateInputRef.current?.showPicker?.()}
+                      onClick={() => {
+                        dateInputRef.current?.showPicker?.()
+                        dateInputRef.current?.focus()
+                      }}
                       disabled={dateStatus === 'loading'}
                     >
                       <span className="today-date">{todayLabel}</span>
@@ -314,6 +322,19 @@ export default function TodayTab({ data }: { data: TodayTabData | null }) {
                       aria-label="Pick a date"
                       disabled={dateStatus === 'loading'}
                       tabIndex={-1}
+                    />
+                  </>
+                ) : supportsPicker && isTouch ? (
+                  <>
+                    <span className="today-date">{todayLabel}</span>
+                    <input
+                      className="date-picker-touch"
+                      type="date"
+                      value={selectedDateKey}
+                      max={todayKey}
+                      onChange={(event) => requestDateChange(event.target.value)}
+                      aria-label="Pick a date"
+                      disabled={dateStatus === 'loading'}
                     />
                   </>
                 ) : (
