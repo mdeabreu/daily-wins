@@ -188,6 +188,224 @@ main {
   background: linear-gradient(135deg, rgba(42, 111, 109, 0.08), rgba(231, 111, 46, 0.08));
 }
 
+.progress-card {
+  padding: 22px 24px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.progress-eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.progress-title {
+  margin: 6px 0 0;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1.4rem;
+}
+
+.progress-year-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.progress-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.progress-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.progress-toggle {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  gap: 4px;
+}
+
+.toggle-button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-button:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.toggle-button.is-active {
+  color: #fff;
+  background: var(--accent-2);
+  box-shadow: 0 10px 18px rgba(42, 111, 109, 0.2);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(228, 218, 203, 0.9);
+  border: 1px solid transparent;
+}
+
+.legend-dot.is-missing {
+  background: rgba(228, 218, 203, 0.9);
+  border-color: rgba(228, 218, 203, 0.9);
+}
+
+.legend-dot.is-unrated {
+  background: transparent;
+  border: 1px dashed rgba(95, 87, 80, 0.6);
+}
+
+.year-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.month-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.month-label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.month-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 10px);
+  gap: 6px;
+  align-items: start;
+}
+
+.day-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(228, 218, 203, 0.9);
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.day-dot:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(28, 27, 26, 0.12);
+}
+
+.day-dot.is-missing {
+  background: rgba(228, 218, 203, 0.75);
+}
+
+.day-dot.is-unrated {
+  background: transparent;
+  border: 1px dashed rgba(95, 87, 80, 0.6);
+  box-shadow: none;
+}
+
+.day-dot.is-empty {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.day-dot.rating-1 {
+  background: #b2533e;
+}
+
+.day-dot.rating-2 {
+  background: #d17851;
+}
+
+.day-dot.rating-3 {
+  background: #e4a767;
+}
+
+.day-dot.rating-4 {
+  background: #b5b26e;
+}
+
+.day-dot.rating-5 {
+  background: #2a6f6d;
+}
+
+.legend-dot.rating-1 {
+  background: #b2533e;
+}
+
+.legend-dot.rating-2 {
+  background: #d17851;
+}
+
+.legend-dot.rating-3 {
+  background: #e4a767;
+}
+
+.legend-dot.rating-4 {
+  background: #b5b26e;
+}
+
+.legend-dot.rating-5 {
+  background: #2a6f6d;
+}
+
+@media (max-width: 720px) {
+  .month-row {
+    grid-template-columns: 1fr;
+  }
+
+  .month-label {
+    font-size: 0.95rem;
+  }
+}
+
 .today-tab {
   display: flex;
   flex-direction: column;

@@ -83,7 +83,7 @@ export default function Tabs({ todayData, wins, journals }: TabsProps) {
       case 'wins':
         return <WinsTab wins={winsState} onRefresh={refreshAll} />
       case 'progress':
-        return <ProgressTab />
+        return <ProgressTab journals={journalsState} />
       case 'today':
       default:
         return <TodayTab data={todayState} onJournalSaved={handleJournalSaved} />
