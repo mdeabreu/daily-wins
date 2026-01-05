@@ -6,7 +6,9 @@ export const Journals: CollectionConfig = {
   slug: 'journals',
   admin: {
     useAsTitle: 'date',
+    defaultColumns: ['date', 'rating', 'journal', 'wins'],
   },
+  defaultSort: '-date',
   access: {
     read: authenticated,
     create: authenticated,
