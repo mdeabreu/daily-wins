@@ -17,6 +17,7 @@ export const useWins = ({ initialWins = [], params }: UseWinsOptions = {}) => {
   const isMounted = useRef(true)
 
   useEffect(() => {
+    isMounted.current = true
     return () => {
       isMounted.current = false
     }

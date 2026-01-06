@@ -17,6 +17,7 @@ export const useJournals = ({ initialJournals = [], params }: UseJournalsOptions
   const isMounted = useRef(true)
 
   useEffect(() => {
+    isMounted.current = true
     return () => {
       isMounted.current = false
     }
